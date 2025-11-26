@@ -62,7 +62,7 @@ def get_queue_button():
             [
                 InlineKeyboardButton(
                     text="Дізнатись свою чергу ⚡️",
-                    web_app=WebAppInfo(url="https://poetic-torte-6ea2bc.netlify.app/")
+                    web_app=WebAppInfo(url="https://t.me/energo_infobot/webapp")
                 )
             ]
         ]
@@ -163,3 +163,4 @@ async def main():
     await dp.start_polling(bot)
 
 asyncio.run(main())
+
