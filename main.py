@@ -148,7 +148,7 @@ async def auto_update():
         except Exception as e:
             print(f"[Помилка автооновлення] {e}")
 
-        await asyncio.sleep(60)
+        await asyncio.sleep(300)
 
 # ---------------------------------------
 #   ЗАПУСК
@@ -158,4 +158,5 @@ async def main():
     await dp.start_polling(bot)
 
 asyncio.run(main())
+
 
