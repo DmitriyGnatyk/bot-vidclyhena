@@ -1,5 +1,6 @@
 import asyncio
 import requests
+from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
@@ -74,7 +75,7 @@ def get_queue_button():
 @dp.message(F.text == "/grafic")
 async def cmd_grafic(message: Message):
     sched = fetch_schedule()
-    now = datetime.now().strftime("%H:%M")
+    now = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%H:%M")
     text = f"⚡️ Графік відключень:\n{sched}\n\n🕒 Оновлено о {now}"
 
     # Перевіряємо, чи повідомлення вже є у списку
@@ -126,7 +127,7 @@ async def auto_update():
 
         try:
             new_data = fetch_schedule()
-            now = datetime.now().strftime("%H:%M")
+            now = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%H:%M")
             text = f"⚡️ Графік відключень:\n{new_data}\n\n🕒 Оновлено о {now}"
 
             for msg in state["messages"]:
@@ -162,6 +163,7 @@ async def main():
     await dp.start_polling(bot)
 
 asyncio.run(main())
+
 
 
 
