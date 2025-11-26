@@ -85,7 +85,8 @@ async def cmd_grafic(message: Message):
                     chat_id=msg["chat_id"],
                     message_id=msg["message_id"],
                     text=text,
-                    parse_mode="HTML"
+                    parse_mode="HTML",
+                    reply_markup=get_queue_button()
                 )
                 return
             except:
@@ -132,7 +133,8 @@ async def auto_update():
                         chat_id=msg["chat_id"],
                         message_id=msg["message_id"],
                         text=text,
-                        parse_mode="HTML"
+                        parse_mode="HTML",
+                        reply_markup=get_queue_button()
                     )
                 except Exception as e:
                     print(f"[Помилка оновлення повідомлення] {e}")
@@ -156,3 +158,4 @@ async def main():
     await dp.start_polling(bot)
 
 asyncio.run(main())
+
