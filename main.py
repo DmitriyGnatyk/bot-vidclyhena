@@ -78,22 +78,18 @@ async def cmd_grafic(message: Message):
     now = datetime.now(ZoneInfo("Europe/Kyiv")).strftime("%H:%M")
     text = f"⚡️ Графік відключень:\n{sched}\n\n🕒 Оновлено о {now}"
 
-    # Перевіряємо, чи повідомлення вже є у списку
     for msg in state["messages"]:
         if msg["chat_id"] == message.chat.id and msg.get("thread_id") == message.message_thread_id:
             try:
-                edit_kwargs = {
-                    "chat_id": msg["chat_id"],
-                    "message_id": msg["message_id"],
-                    "text": text,
-                    "parse_mode": "HTML"
-                }
-                if msg.get("thread_id"):
-                    edit_kwargs["message_thread_id"] = msg["thread_id"]
-                await bot.edit_message_text(**edit_kwargs)
+                await bot.edit_message_text(
+                    chat_id=msg["chat_id"],
+                    message_id=msg["message_id"],
+                    text=text,
+                    parse_mode="HTML"
+                )
                 return
             except:
-                pass  # раптом видалене — створимо нове
+                pass
 
     # Відправляємо нове повідомлення
     send_kwargs = {
@@ -131,16 +127,13 @@ async def auto_update():
             text = f"⚡️ Графік відключень:\n{new_data}\n\n🕒 Оновлено о {now}"
 
             for msg in state["messages"]:
-                edit_kwargs = {
-                    "chat_id": msg["chat_id"],
-                    "message_id": msg["message_id"],
-                    "text": text,
-                    "parse_mode": "HTML"
-                }
-                if msg.get("thread_id"):
-                    edit_kwargs["message_thread_id"] = msg["thread_id"]
                 try:
-                    await bot.edit_message_text(**edit_kwargs)
+                    await bot.edit_message_text(
+                        chat_id=msg["chat_id"],
+                        message_id=msg["message_id"],
+                        text=text,
+                        parse_mode="HTML"
+                    )
                 except Exception as e:
                     print(f"[Помилка оновлення повідомлення] {e}")
 
@@ -163,7 +156,3 @@ async def main():
     await dp.start_polling(bot)
 
 asyncio.run(main())
-
-
-
-
