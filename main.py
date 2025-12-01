@@ -96,12 +96,44 @@ async def send_update_notification(chat_id, thread_id=None, reply_to_message_id=
         if reply_to_message_id:
             send_kwargs["reply_to_message_id"] = reply_to_message_id
 
-        await bot.send_message(**send_kwargs)
+        # Відправляємо повідомлення і отримуємо його ID
+        sent_message = await bot.send_message(**send_kwargs)
         print(f"[{datetime.now().strftime('%H:%M:%S')}] 📢 Надіслано сповіщення про оновлення")
+        
+        # Запускаємо завдання на видалення через 1 годину
+        asyncio.create_task(delete_after_delay(
+            chat_id=chat_id,
+            message_id=sent_message.message_id,
+            thread_id=thread_id,
+            delay_seconds=3600  # 1 година = 3600 секунд
+        ))
         
     except Exception as e:
         print(f"[Помилка відправки сповіщення] {e}")
 
+async def delete_after_delay(chat_id, message_id, thread_id=None, delay_seconds=3600):
+    """Видаляє повідомлення через вказану затримку"""
+    try:
+        # Чекаємо вказану кількість секунд
+        await asyncio.sleep(delay_seconds)
+        
+        # Видаляємо повідомлення
+        delete_kwargs = {
+            "chat_id": chat_id,
+            "message_id": message_id
+        }
+        
+        if thread_id:
+            delete_kwargs["message_thread_id"] = thread_id
+            
+        await bot.delete_message(**delete_kwargs)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🗑️ Сповіщення про оновлення видалено")
+        
+    except Exception as e:
+        # Якщо повідомлення вже видалено або немає прав - ігноруємо помилку
+        if "message to delete not found" not in str(e).lower() and "message can't be deleted" not in str(e).lower():
+            print(f"[Помилка видалення сповіщення] {e}")
+            
 # ---------------------------------------
 #   КОМАНДА /grafic
 # ---------------------------------------
@@ -227,3 +259,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
