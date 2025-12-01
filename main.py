@@ -72,8 +72,8 @@ def get_queue_button():
 # ---------------------------------------
 #   ФУНКЦІЯ ДЛЯ ВІДПРАВКИ ПОВІДОМЛЕНЬ ПРО ОНОВЛЕННЯ
 # ---------------------------------------
-async def send_update_notification(chat_id, thread_id=None):
-    """Відправляє повідомлення про оновлення графіка"""
+async def send_update_notification(chat_id, thread_id=None, reply_to_message_id=None):
+    """Відправляє повідомлення про оновлення графіка як відповідь на повідомлення з графіком"""
     try:
         text = (
             "🔄 <b>Графік оновлено!</b>\n\n"
@@ -91,6 +91,10 @@ async def send_update_notification(chat_id, thread_id=None):
         
         if thread_id:
             send_kwargs["message_thread_id"] = thread_id
+            
+        # Додаємо відповідь на повідомлення з графіком, якщо вказано
+        if reply_to_message_id:
+            send_kwargs["reply_to_message_id"] = reply_to_message_id
 
         await bot.send_message(**send_kwargs)
         print(f"[{datetime.now().strftime('%H:%M:%S')}] 📢 Надіслано сповіщення про оновлення")
@@ -142,6 +146,30 @@ async def cmd_grafic(message: Message):
     })
     state["last_data"] = sched
 
+@dp.message(F.text == "/test_update")
+async def cmd_test_update(message: Message):
+    """Тестова команда для перевірки сповіщення про оновлення"""
+    try:
+        # Шукаємо останнє повідомлення з графіком у цьому чаті
+        last_graph_message = None
+        for msg in state["messages"]:
+            if msg["chat_id"] == message.chat.id and msg.get("thread_id") == message.message_thread_id:
+                last_graph_message = msg
+                break
+        
+        # Відправляємо сповіщення як відповідь на повідомлення з графіком (якщо знайшли)
+        await send_update_notification(
+            chat_id=message.chat.id,
+            thread_id=message.message_thread_id,
+            reply_to_message_id=last_graph_message["message_id"] if last_graph_message else None
+        )
+        
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🧪 Тестове сповіщення відправлено")
+        
+    except Exception as e:
+        print(f"[Помилка тестової команди] {e}")
+        await message.answer("❌ Помилка при відправці тестового сповіщення")
+
 # ---------------------------------------
 #   АВТО-ОНОВЛЕННЯ КОЖНІ 5 ХВ
 # ---------------------------------------
@@ -169,14 +197,19 @@ async def auto_update():
                     print(f"[Помилка оновлення повідомлення] {e}")
 
             if new_data != state["last_data"]:
-                # Відправляємо сповіщення про оновлення в усі чати
-                sent_chats = set()  # Щоб уникнути дублювання в одному чаті
+                # Відправляємо сповіщення про оновлення як відповідь на повідомлення з графіком
+                sent_chats = set()
                 
                 for msg in state["messages"]:
                     chat_key = (msg["chat_id"], msg.get("thread_id"))
                     
                     if chat_key not in sent_chats:
-                        await send_update_notification(msg["chat_id"], msg.get("thread_id"))
+                        # Відправляємо відповідь на конкретне повідомлення з графіком
+                        await send_update_notification(
+                            chat_id=msg["chat_id"],
+                            thread_id=msg.get("thread_id"),
+                            reply_to_message_id=msg["message_id"]  # ← Ось це робить відповідь
+                        )
                         sent_chats.add(chat_key)
                 
                 state["last_data"] = new_data
@@ -188,7 +221,7 @@ async def auto_update():
             print(f"[Помилка автооновлення] {e}")
 
         await asyncio.sleep(300)
-
+        
 # ---------------------------------------
 #   КОМАНДА /start
 # ---------------------------------------
@@ -218,3 +251,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
