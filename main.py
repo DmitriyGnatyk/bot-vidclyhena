@@ -70,6 +70,35 @@ def get_queue_button():
     return keyboard
 
 # ---------------------------------------
+#   ФУНКЦІЯ ДЛЯ ВІДПРАВКИ ПОВІДОМЛЕНЬ ПРО ОНОВЛЕННЯ
+# ---------------------------------------
+async def send_update_notification(chat_id, thread_id=None):
+    """Відправляє повідомлення про оновлення графіка"""
+    try:
+        text = (
+            "🔄 <b>Графік оновлено!</b>\n\n"
+            "• Можливі зміни в годинах відключень\n"
+            "• Додано нові або змінено існуючі періоди\n"
+            "• Перевірте актуальний графік вище\n\n"
+            "<i>Оновлення відбувається автоматично кожні 5 хвилин</i>"
+        )
+        
+        send_kwargs = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML"
+        }
+        
+        if thread_id:
+            send_kwargs["message_thread_id"] = thread_id
+
+        await bot.send_message(**send_kwargs)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] 📢 Надіслано сповіщення про оновлення")
+        
+    except Exception as e:
+        print(f"[Помилка відправки сповіщення] {e}")
+
+# ---------------------------------------
 #   КОМАНДА /grafic
 # ---------------------------------------
 @dp.message(F.text == "/grafic")
@@ -114,7 +143,7 @@ async def cmd_grafic(message: Message):
     state["last_data"] = sched
 
 # ---------------------------------------
-#   АВТО-ОНОВЛЕННЯ КОЖНУ 1 ХВ
+#   АВТО-ОНОВЛЕННЯ КОЖНІ 5 ХВ
 # ---------------------------------------
 async def auto_update():
     while True:
@@ -140,15 +169,45 @@ async def auto_update():
                     print(f"[Помилка оновлення повідомлення] {e}")
 
             if new_data != state["last_data"]:
+                # Відправляємо сповіщення про оновлення в усі чати
+                sent_chats = set()  # Щоб уникнути дублювання в одному чаті
+                
+                for msg in state["messages"]:
+                    chat_key = (msg["chat_id"], msg.get("thread_id"))
+                    
+                    if chat_key not in sent_chats:
+                        await send_update_notification(msg["chat_id"], msg.get("thread_id"))
+                        sent_chats.add(chat_key)
+                
                 state["last_data"] = new_data
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔄 Графік оновлено")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 🔄 Графік оновлено - виявлені зміни")
             else:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] ✔ Без змін, тільки час оновлено")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ✔ Графік без змін - оновлено лише час")
 
         except Exception as e:
             print(f"[Помилка автооновлення] {e}")
 
         await asyncio.sleep(300)
+
+# ---------------------------------------
+#   КОМАНДА /start
+# ---------------------------------------
+@dp.message(F.text == "/start")
+async def cmd_start(message: Message):
+    welcome_text = (
+        "👋 <b>Ласкаво просимо до бота графіків відключень!</b>\n\n"
+        "⚡ <b>Доступні команди:</b>\n"
+        "/grafic - Показати актуальний графік відключень\n"
+        "/start - Це повідомлення\n\n"
+        "📊 <b>Автоматичні оновлення:</b>\n"
+        "• Графік оновлюється кожні 5 хвилин\n"
+        "• При змінах - надсилається сповіщення\n"
+        "• Завжди актуальна інформація\n\n"
+        "🔔 <b>Бот працює в групах!</b>\n"
+        "Додайте мене до групи та використовуйте /grafic"
+    )
+    
+    await message.answer(welcome_text, parse_mode="HTML")
 
 # ---------------------------------------
 #   ЗАПУСК
@@ -157,6 +216,5 @@ async def main():
     asyncio.create_task(auto_update())
     await dp.start_polling(bot)
 
-asyncio.run(main())
-
-
+if __name__ == "__main__":
+    asyncio.run(main())
