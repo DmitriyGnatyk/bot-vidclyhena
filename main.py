@@ -78,7 +78,7 @@ async def send_update_notification(chat_id, thread_id=None, reply_to_message_id=
         text = (
             "🔄 <b>Графік оновлено!</b>\n\n"
             "• Можливі зміни в годинах відключень\n"
-            "• Додано нові або змінено існуючі періоди\n"
+            "• Або оновився список з новим днем\n"
             "• Перевірте актуальний графік вище\n\n"
             "<i>Оновлення відбувається автоматично кожні 5 хвилин</i>"
         )
@@ -145,32 +145,6 @@ async def cmd_grafic(message: Message):
         "thread_id": message.message_thread_id
     })
     state["last_data"] = sched
-
-# ---------------------------------------
-#   ТЕСТОВА КОМАНДА /test_update
-# ---------------------------------------
-@dp.message(F.text == "/test_update")
-async def cmd_test_update(message: Message):
-    """Тестова команда для перевірки сповіщення про оновлення"""
-    try:
-        # Шукаємо повідомлення з графіком у цьому чаті
-        for msg in state["messages"]:
-            if msg["chat_id"] == message.chat.id and msg.get("thread_id") == message.message_thread_id:
-                # Знайшли! Відправляємо сповіщення як відповідь на повідомлення з графіком
-                await send_update_notification(
-                    chat_id=msg["chat_id"],
-                    thread_id=msg.get("thread_id"),
-                    reply_to_message_id=msg["message_id"]  # ← Відповідь на повідомлення з графіком
-                )
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 🧪 Тестове сповіщення відправлено")
-                return
-        
-        # Якщо не знайшли повідомлення з графіком
-        await message.answer("❌ Спочатку використайте /grafic щоб створити графік")
-        
-    except Exception as e:
-        print(f"[Помилка тестової команди] {e}")
-        await message.answer("❌ Помилка при відправці тестового сповіщення")
 
 # ---------------------------------------
 #   АВТО-ОНОВЛЕННЯ КОЖНІ 5 ХВ
@@ -253,5 +227,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
