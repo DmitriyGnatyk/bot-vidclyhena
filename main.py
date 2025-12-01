@@ -146,25 +146,27 @@ async def cmd_grafic(message: Message):
     })
     state["last_data"] = sched
 
+# ---------------------------------------
+#   ТЕСТОВА КОМАНДА /test_update
+# ---------------------------------------
 @dp.message(F.text == "/test_update")
 async def cmd_test_update(message: Message):
     """Тестова команда для перевірки сповіщення про оновлення"""
     try:
-        # Шукаємо останнє повідомлення з графіком у цьому чаті
-        last_graph_message = None
+        # Шукаємо повідомлення з графіком у цьому чаті
         for msg in state["messages"]:
             if msg["chat_id"] == message.chat.id and msg.get("thread_id") == message.message_thread_id:
-                last_graph_message = msg
-                break
+                # Знайшли! Відправляємо сповіщення як відповідь на повідомлення з графіком
+                await send_update_notification(
+                    chat_id=msg["chat_id"],
+                    thread_id=msg.get("thread_id"),
+                    reply_to_message_id=msg["message_id"]  # ← Відповідь на повідомлення з графіком
+                )
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 🧪 Тестове сповіщення відправлено")
+                return
         
-        # Відправляємо сповіщення як відповідь на повідомлення з графіком (якщо знайшли)
-        await send_update_notification(
-            chat_id=message.chat.id,
-            thread_id=message.message_thread_id,
-            reply_to_message_id=last_graph_message["message_id"] if last_graph_message else None
-        )
-        
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🧪 Тестове сповіщення відправлено")
+        # Якщо не знайшли повідомлення з графіком
+        await message.answer("❌ Спочатку використайте /grafic щоб створити графік")
         
     except Exception as e:
         print(f"[Помилка тестової команди] {e}")
@@ -251,4 +253,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
