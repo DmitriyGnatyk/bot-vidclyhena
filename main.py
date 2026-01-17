@@ -26,7 +26,7 @@ state = {
 #   ПАРСИНГ ГРАФІКУ В НОВОМУ ФОРМАТІ
 # ---------------------------------------
 def fetch_schedule():
-    html = requests.get(URL, timeout=10).text
+    html = requests.get(URL, timeout=30).text
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("div", {"id": "fetched-data-container"}).find("table")
     rows = table.find_all("tr")
@@ -259,5 +259,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
