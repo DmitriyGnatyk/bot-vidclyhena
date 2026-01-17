@@ -80,7 +80,7 @@ async def send_update_notification(chat_id, thread_id=None, reply_to_message_id=
             "• Можливі зміни в годинах відключень\n"
             "• Або оновився список з новим днем\n"
             "• Перевірте актуальний графік вище\n\n"
-            "<i>Оновлення відбувається автоматично кожні 5 хвилин</i>"
+            "<i>Оновлення відбувається автоматично кожні 10 хвилин</i>"
         )
         
         send_kwargs = {
@@ -228,7 +228,7 @@ async def auto_update():
         except Exception as e:
             print(f"[Помилка автооновлення] {e}")
 
-        await asyncio.sleep(300)
+        await asyncio.sleep(600)
         
 # ---------------------------------------
 #   КОМАНДА /start
@@ -259,4 +259,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
