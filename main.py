@@ -43,19 +43,24 @@ def fetch_schedule():
 
         schedule_parts.append(f"📅 <b>{date}</b>")
 
-        # Формуємо черги з подвійними переносами між ними
-        queue_text = ""
+        # Формуємо всі черги
+        all_queues = []
         for i in range(0, len(times), 2):
             t1 = times[i] if times[i] else "—"
             t2 = times[i+1] if i+1 < len(times) and times[i+1] else "—"
             queue_number = (i // 2) + 1
             
-            # Додаємо подвійний перенос перед кожною парою (крім першої)
-            if i > 0:
+            if t1 != "—":
+                all_queues.append(f"⚡ Черга {queue_number}.1: {t1}")
+            if t2 != "—":
+                all_queues.append(f"⚡ Черга {queue_number}.2: {t2}")
+
+        # Додаємо порожні рядки між чергами
+        queue_text = ""
+        for i, queue_line in enumerate(all_queues):
+            queue_text += queue_line
+            if i < len(all_queues) - 1:  # Якщо не остання черга
                 queue_text += "\n\n"
-            
-            queue_text += f"⚡ Черга {queue_number}.1: {t1}\n"
-            queue_text += f"⚡ Черга {queue_number}.2: {t2}"
 
         schedule_parts.append(f"<pre>{queue_text}</pre>")
 
@@ -263,6 +268,7 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
 
