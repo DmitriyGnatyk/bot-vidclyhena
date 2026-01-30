@@ -205,7 +205,7 @@ async def cmd_grafic(message: Message):
     state["last_data"] = sched
 
 @dp.callback_query(F.data == "update_explanation")
-async def explain_update(callback_query: types.CallbackQuery):
+async def explain_update(callback_query: CallbackQuery):
     """Показує пояснення щодо сповіщення про оновлення"""
     explanation_text = (
         "ℹ️ <b>Пояснення щодо сповіщення:</b>\n\n"
@@ -305,3 +305,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
