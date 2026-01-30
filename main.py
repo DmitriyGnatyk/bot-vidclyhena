@@ -3,7 +3,7 @@ import requests
 from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup
 from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from datetime import datetime
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import WebAppInfo
@@ -84,24 +84,30 @@ def get_queue_button():
 async def send_update_notification(chat_id, thread_id=None, reply_to_message_id=None):
     """Відправляє повідомлення про оновлення графіка як відповідь на повідомлення з графіком"""
     try:
-        text = (
-            "🔄 <b>Графік оновлено!</b>\n\n"
-            "• Можливі зміни в годинах відключень\n"
-            "• Або оновився список з новим днем\n"
-            "• Перевірте актуальний графік вище\n\n"
-            "<i>Оновлення відбувається автоматично кожні 10 хвилин</i>"
+        text = "🔄 <b>Зафіксовано зміну у графіку!</b>"
+        
+        # Створюємо клавіатуру з кнопкою "?"
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="❓",
+                        callback_data="update_explanation"
+                    )
+                ]
+            ]
         )
         
         send_kwargs = {
             "chat_id": chat_id,
             "text": text,
-            "parse_mode": "HTML"
+            "parse_mode": "HTML",
+            "reply_markup": keyboard  # Додаємо клавіатуру
         }
         
         if thread_id:
             send_kwargs["message_thread_id"] = thread_id
             
-        # Додаємо відповідь на повідомлення з графіком, якщо вказано
         if reply_to_message_id:
             send_kwargs["reply_to_message_id"] = reply_to_message_id
 
@@ -123,25 +129,36 @@ async def send_update_notification(chat_id, thread_id=None, reply_to_message_id=
 async def delete_after_delay(chat_id, message_id, thread_id=None, delay_seconds=3600):
     """Видаляє повідомлення через вказану затримку"""
     try:
-        # Чекаємо вказану кількість секунд
         await asyncio.sleep(delay_seconds)
         
-        # Видаляємо повідомлення
-        delete_kwargs = {
-            "chat_id": chat_id,
-            "message_id": message_id
-        }
-        
-        if thread_id:
-            delete_kwargs["message_thread_id"] = thread_id
+        # Спробуємо видалити кількома способами
+        try:
+            # Спосіб 1: Звичайне видалення
+            await bot.delete_message(chat_id=chat_id, message_id=message_id)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 🗑️ Сповіщення видалено")
             
-        await bot.delete_message(**delete_kwargs)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] 🗑️ Сповіщення про оновлення видалено")
-        
+        except Exception as e:
+            error_msg = str(e).lower()
+            
+            # Спосіб 2: Якщо це тред, спробуємо без message_thread_id
+            if "thread" in error_msg:
+                try:
+                    await bot.delete_message(chat_id=chat_id, message_id=message_id)
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🗑️ Сповіщення в треді видалено")
+                except:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ Не вдалося видалити повідомлення в треді")
+                    
+            elif "message to delete not found" in error_msg:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ℹ️ Повідомлення вже видалено")
+                
+            elif "message can't be deleted" in error_msg:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] ⚠️ Немає прав на видалення повідомлення")
+                
+            else:
+                print(f"[Помилка видалення] {e}")
+                
     except Exception as e:
-        # Якщо повідомлення вже видалено або немає прав - ігноруємо помилку
-        if "message to delete not found" not in str(e).lower() and "message can't be deleted" not in str(e).lower():
-            print(f"[Помилка видалення сповіщення] {e}")
+        print(f"[Загальна помилка в delete_after_delay] {e}")
             
 # ---------------------------------------
 #   КОМАНДА /grafic
@@ -187,6 +204,26 @@ async def cmd_grafic(message: Message):
     })
     state["last_data"] = sched
 
+@dp.callback_query(F.data == "update_explanation")
+async def explain_update(callback_query: types.CallbackQuery):
+    """Показує пояснення щодо сповіщення про оновлення"""
+    explanation_text = (
+        "ℹ️ <b>Пояснення щодо сповіщення:</b>\n\n"
+        "Це сповіщення приходить, коли графік відключень було змінено на сайті РЕМ.\n\n"
+        "<b>Зміни можуть включати:</b>\n"
+        "• Додавання або видалення днів у графіку\n"
+        "• Зміни годин відключень для певних черг\n"
+        "• Оновлення списку населених пунктів\n\n"
+        "Бот автоматично перевіряє сайт кожні 10 хвилин.\n"
+        "Сповіщення видаляється через 1 годину."
+    )
+    
+    # Відправляємо alert з поясненням
+    await callback_query.answer(
+        text=explanation_text,
+        show_alert=True,
+        cache_time=60
+    )
 # ---------------------------------------
 #   АВТО-ОНОВЛЕННЯ КОЖНІ 5 ХВ
 # ---------------------------------------
@@ -250,7 +287,7 @@ async def cmd_start(message: Message):
         "/grafic - Показати актуальний графік відключень\n"
         "/start - Це повідомлення\n\n"
         "📊 <b>Автоматичні оновлення:</b>\n"
-        "• Графік оновлюється кожні 5 хвилин\n"
+        "• Графік оновлюється кожні 10 хвилин\n"
         "• При змінах - надсилається сповіщення\n"
         "• Завжди актуальна інформація\n\n"
         "🔔 <b>Бот працює в групах!</b>\n"
@@ -268,8 +305,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-
-
-
