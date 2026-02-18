@@ -72,7 +72,7 @@ def get_queue_button():
             [
                 InlineKeyboardButton(
                     text="Дізнатись свою чергу ⚡️",
-                    url="https://t.me/energo_infobot/webapp")
+                    url="https://www.roe.vsei.ua/wp-content/uploads/2026/02/GPV_cherga_Rivnenska_oblast.pdf")
             ]
         ]
     )
@@ -302,5 +302,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
