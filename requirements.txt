@@ -1,6 +1,4 @@
-aiogram==3.22.0
-beautifulsoup4
-requests
-lxml
-
-
+aiogram>=3.31,<4
+aiohttp>=3.9
+beautifulsoup4>=4.12
+lxml>=5.0
