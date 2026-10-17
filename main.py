@@ -1,3 +1,13 @@
+"""Бот графіків відключень (РОЕ, Рівненська область).
+
+Що вміє:
+  • /grafic — надсилає актуальний графік і підтримує його в актуальному стані;
+  • перевіряє сайт кожні CHECK_INTERVAL секунд, редагує повідомлення тільки
+    коли графік справді змінився і шле сповіщення-відповідь (видаляється через
+    NOTIFY_TTL секунд);
+  • кольорові inline-кнопки (Bot API 9.4+): 🟦 primary, 🟩 success, 🟥 danger;
+  • стан зберігається у файлі — після перезапуску бот не «забуває» чати.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +16,6 @@ import html
 import json
 import logging
 import os
-import ssl
 import sys
 import time
 from contextlib import suppress
@@ -15,8 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import aiohttp
-import certifi
+import requests
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
@@ -135,7 +143,6 @@ class Schedule:
 
 _cache: Schedule | None = None
 _fetch_lock = asyncio.Lock()
-_http: aiohttp.ClientSession | None = None
 
 
 def parse_schedule(page: str) -> str:
@@ -171,19 +178,22 @@ def parse_schedule(page: str) -> str:
     return "\n".join(parts)
 
 
+def _download_sync() -> str:
+    # Той самий запит, що й у вихідній версії бота (requests + стандартні заголовки)
+    resp = requests.get(SCHEDULE_URL, timeout=30)
+    resp.raise_for_status()
+    return resp.text
+
+
 async def _download() -> str:
-    assert _http is not None
     last_exc: Exception | None = None
-    for attempt in range(1, 4):
+    for attempt in range(1, 3):
         try:
-            async with _http.get(SCHEDULE_URL) as resp:
-                if resp.status != 200:
-                    raise RuntimeError(f"HTTP {resp.status}")
-                return await resp.text()
-        except Exception as exc:  # мережа, SSL, таймаут, статус
+            return await asyncio.to_thread(_download_sync)  # не блокує event loop
+        except Exception as exc:  # мережа, таймаут, HTTP-статус
             last_exc = exc
-            log.warning("Спроба %d/3 завантажити сайт: %s: %s", attempt, type(exc).__name__, exc)
-            await asyncio.sleep(2 * attempt)
+            log.warning("Спроба %d/2 завантажити сайт: %s: %s", attempt, type(exc).__name__, exc)
+            await asyncio.sleep(2)
     raise RuntimeError(f"Сайт недоступний: {type(last_exc).__name__}: {last_exc}")
 
 
@@ -399,22 +409,9 @@ async def start_web() -> web.AppRunner:
 
 # ───────────────────────── Запуск ─────────────────────────
 async def main() -> None:
-    global _http
     if not TOKEN:
         sys.exit("❌ Змінна середовища BOT_TOKEN не задана")
 
-    _http = aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=30),
-        connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-            ),
-            "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
-            "Accept-Language": "uk-UA,uk;q=0.9",
-        },
-    )
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     runner = await start_web()
     updater = asyncio.create_task(auto_update(bot))
@@ -428,7 +425,6 @@ async def main() -> None:
         for task in list(_background):
             task.cancel()
         await runner.cleanup()
-        await _http.close()
         await bot.session.close()
 
 
