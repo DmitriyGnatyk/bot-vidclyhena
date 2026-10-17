@@ -1,13 +1,3 @@
-"""Бот графіків відключень (РОЕ, Рівненська область).
-
-Що вміє:
-  • /grafic — надсилає актуальний графік і підтримує його в актуальному стані;
-  • перевіряє сайт кожні CHECK_INTERVAL секунд, редагує повідомлення тільки
-    коли графік справді змінився і шле сповіщення-відповідь (видаляється через
-    NOTIFY_TTL секунд);
-  • кольорові inline-кнопки (Bot API 9.4+): 🟦 primary, 🟩 success, 🟥 danger;
-  • стан зберігається у файлі — після перезапуску бот не «забуває» чати.
-"""
 from __future__ import annotations
 
 import asyncio
@@ -16,6 +6,7 @@ import html
 import json
 import logging
 import os
+import ssl
 import sys
 import time
 from contextlib import suppress
@@ -25,6 +16,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import aiohttp
+import certifi
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
@@ -147,7 +139,7 @@ _http: aiohttp.ClientSession | None = None
 
 
 def parse_schedule(page: str) -> str:
-    soup = BeautifulSoup(page, "lxml")
+    soup = BeautifulSoup(page, "html.parser")
     container = soup.find("div", {"id": "fetched-data-container"})
     table = container.find("table") if container else None
     if table is None:
@@ -185,13 +177,14 @@ async def _download() -> str:
     for attempt in range(1, 4):
         try:
             async with _http.get(SCHEDULE_URL) as resp:
-                resp.raise_for_status()
+                if resp.status != 200:
+                    raise RuntimeError(f"HTTP {resp.status}")
                 return await resp.text()
-        except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
+        except Exception as exc:  # мережа, SSL, таймаут, статус
             last_exc = exc
-            log.warning("Спроба %d/3 завантажити сайт: %s", attempt, exc)
+            log.warning("Спроба %d/3 завантажити сайт: %s: %s", attempt, type(exc).__name__, exc)
             await asyncio.sleep(2 * attempt)
-    raise RuntimeError(f"Сайт недоступний: {last_exc}")
+    raise RuntimeError(f"Сайт недоступний: {type(last_exc).__name__}: {last_exc}")
 
 
 async def get_schedule(force: bool = False) -> Schedule:
@@ -412,7 +405,15 @@ async def main() -> None:
 
     _http = aiohttp.ClientSession(
         timeout=aiohttp.ClientTimeout(total=30),
-        headers={"User-Agent": "Mozilla/5.0 (compatible; GrafikBot/2.0)"},
+        connector=aiohttp.TCPConnector(ssl=ssl.create_default_context(cafile=certifi.where())),
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+            "Accept-Language": "uk-UA,uk;q=0.9",
+        },
     )
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     runner = await start_web()
