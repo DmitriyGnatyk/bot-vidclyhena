@@ -340,7 +340,11 @@ async def cmd_grafic(message: Message, bot: Bot) -> None:
         schedule = await get_schedule()
     except Exception as exc:
         log.error("Помилка отримання графіка: %s", exc)
-        await message.answer("😕 Не вдалося отримати графік із сайту. Спробуй за хвилину.")
+        reason = html.escape(f"{type(exc).__name__}: {exc}"[:300])
+        await message.answer(
+            "😕 Не вдалося отримати графік із сайту. Спробуй за хвилину.\n"
+            f"<code>{reason}</code>"
+        )
         return
 
     thread_id = message.message_thread_id if message.is_topic_message else None
@@ -408,12 +412,22 @@ async def start_web() -> web.AppRunner:
 
 
 # ───────────────────────── Запуск ─────────────────────────
+async def startup_check() -> None:
+    """Одразу після запуску перевіряє доступ до сайту — результат видно в логах."""
+    try:
+        schedule = await get_schedule(force=True)
+        log.info("✅ Сайт доступний, графік отримано (%d символів)", len(schedule.text))
+    except Exception as exc:
+        log.error("❌ Сайт недоступний при старті: %s: %s", type(exc).__name__, exc)
+
+
 async def main() -> None:
     if not TOKEN:
         sys.exit("❌ Змінна середовища BOT_TOKEN не задана")
 
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     runner = await start_web()
+    spawn(startup_check())
     updater = asyncio.create_task(auto_update(bot))
 
     try:
