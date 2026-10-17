@@ -1,3 +1,4 @@
+import os
 import asyncio
 import requests
 from zoneinfo import ZoneInfo
@@ -8,7 +9,7 @@ from datetime import datetime
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import WebAppInfo
 
-TOKEN = "8252620965:AAE2U_zv4arez-9JMMAbp4ywJbZCFpkGm6s"
+TOKEN = os.getenv("BOT_TOKEN")
 URL = "https://www.roe.vsei.ua/disconnections"
 
 bot = Bot(token=TOKEN)
