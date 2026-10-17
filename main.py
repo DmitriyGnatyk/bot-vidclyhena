@@ -16,6 +16,7 @@ import html
 import json
 import logging
 import os
+import socket
 import sys
 import time
 from contextlib import suppress
@@ -25,6 +26,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
+import urllib3.util.connection as urllib3_cn
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
@@ -55,6 +57,8 @@ QUEUE_PDF_URL = os.getenv(
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", "600"))  # секунди
 NOTIFY_TTL = int(os.getenv("NOTIFY_TTL", "3600"))  # через скільки видалити сповіщення
 PORT = int(os.getenv("PORT", "8000"))  # Koyeb підставляє PORT сам
+PROXY_URL = os.getenv("PROXY_URL")  # необов'язково: http://user:pass@host:port
+FORCE_IPV4 = os.getenv("FORCE_IPV4", "1") == "1"
 CACHE_TTL = 30  # не ходимо на сайт частіше ніж раз на 30 с
 STATE_FILE = Path(os.getenv("STATE_FILE", "state.json"))
 TZ = ZoneInfo("Europe/Kyiv")
@@ -65,6 +69,9 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("bot")
+
+if FORCE_IPV4:  # деякі сайти «висять» при спробі з'єднання по IPv6
+    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
 
 dp = Dispatcher()
 
@@ -179,8 +186,8 @@ def parse_schedule(page: str) -> str:
 
 
 def _download_sync() -> str:
-    # Той самий запит, що й у вихідній версії бота (requests + стандартні заголовки)
-    resp = requests.get(SCHEDULE_URL, timeout=30)
+    proxies = {"http": PROXY_URL, "https": PROXY_URL} if PROXY_URL else None
+    resp = requests.get(SCHEDULE_URL, timeout=(10, 30), proxies=proxies)
     resp.raise_for_status()
     return resp.text
 
