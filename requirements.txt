@@ -1,4 +1,4 @@
 aiogram>=3.31,<4
 aiohttp>=3.9
+certifi
 beautifulsoup4>=4.12
-lxml>=5.0
