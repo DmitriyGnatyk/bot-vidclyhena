@@ -1,3 +1,6 @@
 aiogram>=3.31,<4
 requests
 beautifulsoup4>=4.12
+python-dotenv
+tzdata
+Pillow>=10.0
